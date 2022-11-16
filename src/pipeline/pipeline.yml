@@ -1,0 +1,26 @@
+parameters:
+- name: sharedServicesEnv
+  displayName: Shared Services Environment
+  type: string
+  default: ssd
+  values:
+      - ssd
+      - ssp
+
+- name: targetenvironment
+  displayName: Target  Environment
+  type: string
+  default: dev
+  values:
+      - dev
+      - tst
+      - trn
+      - prd
+
+# Specifies the stages associated with the pipeline.
+stages:
+
+- template: template.yml
+  parameters:
+    targetenvironment: ${{ parameters.targetenvironment }}
+    sharedServicesEnv: ${{ parameters.sharedServicesEnv }}

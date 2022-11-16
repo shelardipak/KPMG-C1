@@ -1,0 +1,61 @@
+
+parameters:
+
+- name: targetenvironment
+  type: string
+
+- name: sharedServicesEnv
+  type: string
+
+
+
+stages:
+- stage: Deploy
+  variables:
+    - name: prodNonprod
+      ${{ if or(eq(parameters.targetPeeringEnv, 'prd') }}:
+        value: pa
+      ${{ if and(ne(parameters.targetPeeringEnv, 'prd')}}:
+        value: na
+   
+  jobs:
+  - deployment: deploy
+    pool: DevAgents
+    displayName: 'Deploy'
+    environment: ${{ parameters.targetenvironment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+            submodules: true
+          - task: AzureKeyVault@1
+            displayName: Get Key Vault secrets
+            inputs:
+              azureSubscription: ${{ parameters.sharedServicesEnv }}
+              keyVaultName: kv-$(ssProdNonprod)-ukw-${{ parameters.sharedServicesEnv }}-${{ parameters.targetPeeringEnv }}svcpal
+              runAsPreJob: false
+              secretsFilter: subscriptionid,tenantId
+          - task: AzureKeyVault@1
+            displayName: Get Key Vault secrets from common credentials
+            inputs:
+              azureSubscription: ${{ parameters.sharedServicesEnv }}
+              keyVaultName: kv-$(ssProdNonprod)-ukw-${{ parameters.sharedServicesEnv }}-commcreds
+              runAsPreJob: false
+              secretsFilter: netClientId,netClientSecret,hubsubscriptionid
+          - bash: bash ./deploy.sh
+                  displayName: Deploy
+                  env:
+                    ARM_CLIENT_ID: $(clientId)
+                    ARM_CLIENT_SECRET: $(clientSecret)
+                    ARM_SUBSCRIPTION_ID: $(subscriptionId)
+                    ARM_TENANT_ID: $(tenantId)
+                    AZURE_DEVOPS_EXT_PAT: $(azureDevopsExtPat)
+                    LOCATION: ${{ parameters.location }}
+                    SHORT_LOCATION: ${{ parameters.shortLocation }}
+                    TARGET_ENVIRONMENT: ${{ parameters.targetEnvironmentName }}
+                    CI_ENVIRONMENT: ${{ parameters.sharedServicesEnvironmentName }}
+                    PROD_NONPROD: $(prodNonprod)
+                    HUB_SUBSCRIPTION_ID: $(hubSubscriptionId)
+                    BUILD_REPOSITORY_NAME: $(Build.Repository.Name)
